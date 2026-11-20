@@ -71,6 +71,13 @@ test('language switches preserve the facts and support native scripts', () => {
   assert.match(spokenReply(step.reply, 'te'), /అర్హత/);
 });
 
+test('a recorded Telugu age and confirmation complete the insurance interview', () => {
+  const aged = turn(start('PMSBY'), 'నా వయస్సు 19 సంవత్సరాలు.');
+  assert.equal(aged.reply.key, 'bank');
+  const result = turn(aged, 'అవును.');
+  assert.equal(result.reply.results[0].state, 'eligible');
+});
+
 test('thresholds and conditional rules are evaluated independently', () => {
   const marriage = { state: 'telangana', bride: true, age: 18, group: 'bcebc', income: 150001 };
   assert.equal(evaluate(get('telangana-marriage'), { ...marriage, rural: true }).state, 'ineligible');

@@ -36,7 +36,7 @@ export function detectScope(text) {
 
 const unsure = /not sure|don'?t know|maybe|i think|roughly|around\s+\d|about\s+\d|approximately|पता नहीं|शायद|लगभग|తెలియదు|అనుకుంటా|సుమారు|माहीत नाही|खात्री नाही|कदाचित|साधारण/iu;
 const skip = /^(?:skip|pass|छोड़ें|आगे बढ़ें|దాటవేయండి|వదిలేయండి|वगळा)[.!\s]*$/iu;
-const yesWords = /(?:^|[\s,!.?])(?:yes|yep|yeah|true|हाँ|हां|जी हाँ|अवును|ఔను|हो|होय)(?=$|[\s,!.?।])/iu;
+const yesWords = /(?:^|[\s,!.?])(?:yes|yep|yeah|true|हाँ|हां|जी हाँ|అవును|ఔను|हो|होय)(?=$|[\s,!.?।])/iu;
 const noWords = /(?:^|[\s,!.?])(?:no|nope|false|नहीं|नही|లేదు|కాదు|नाही|नको)(?=$|[\s,!.?।])/iu;
 const correction = /(?:\b(?:actually|correction|i meant|rather|sorry|instead)\b|असल में|सही उम्र|दरअसल|నిజానికి|సవరణ|खरं तर|दुरुस्ती)/iu;
 const howTo = /how (?:can|do|to) (?:i )?(?:apply|register)|application (?:steps|process)|कैसे (?:करें|भरें|आवेदन)|आवेदन कैसे|ఎలా (?:దరఖాస్తు|నమోదు)|अर्ज कसा|नोंदणी कशी/iu;
