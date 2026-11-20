@@ -10,6 +10,13 @@ export function authCallback(recovery = false) {
   return window.location.origin + '/auth/callback' + (recovery ? '?intent=recovery' : '');
 }
 
+export async function isGitHubEnabled() {
+  const response = await fetch(new URL('/auth/v1/settings', url), { headers: { apikey: key } });
+  if (!response.ok) throw new Error('Authentication settings are unavailable');
+  const settings = await response.json();
+  return settings.external?.github === true;
+}
+
 export async function voiceHeaders() {
   if (!supabase) return {};
   const { data } = await supabase.auth.getSession();

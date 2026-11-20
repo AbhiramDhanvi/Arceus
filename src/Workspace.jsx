@@ -7,7 +7,7 @@ import { schemes, fields } from './catalog.js';
 import { copy, locales, local } from './languages.js';
 import { evaluate } from './eligibility.js';
 import { words } from './assistant-copy.js';
-import { asDateInput, authCallback, dataOrThrow, documentBucket, memberFacts, memberMilestones, supabase } from './backend.js';
+import { asDateInput, authCallback, dataOrThrow, documentBucket, isGitHubEnabled, memberFacts, memberMilestones, supabase } from './backend.js';
 import { documentMismatches, extractDocument, imageLimit, imageMime, ocrLanguages } from './documents.js';
 
 const labels = {
@@ -69,6 +69,7 @@ function AuthPanel({ lang, recovery, account, onRecovered }) {
     setFeedback(null);
     setBusy(true);
     try {
+      if (!await isGitHubEnabled()) throw new Error('GitHub OAuth is disabled');
       dataOrThrow(await supabase.auth.signInWithOAuth({ provider: 'github', options: { redirectTo: authCallback() } }));
     } catch {
       setFeedback({ message: t('GitHub sign-in is unavailable. Try again later.', 'GitHub साइन-इन उपलब्ध नहीं है। बाद में कोशिश करें।', 'GitHub సైన్ ఇన్ అందుబాటులో లేదు. తర్వాత ప్రయత్నించండి.', 'GitHub साइन इन उपलब्ध नाही. नंतर प्रयत्न करा.'), error: true });

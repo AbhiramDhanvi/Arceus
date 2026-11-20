@@ -35,8 +35,19 @@ export function directoryOnly(item) {
 }
 
 const fillers = new Set('i am need want looking for find look check about explain eligibility scheme schemes tell me please how do can get the my is an a in of and help show any government what which'.split(' '));
+const nativeTerms = [
+  [/विधवा|వితంతు|विधवांसाठी/gu, 'widow'],
+  [/दिव्यांग|दिव्यांगांसाठी|వికలాంగ|దివ్యాంగ/gu, 'disability'],
+  [/छात्रवृत्ति|शिष्यवृत्ती|ఉపకారవేతనం|స్కాలర్‌?షిప్/gu, 'scholarship'],
+  [/पेंशन|पेन्शन|పెన్షన్/gu, 'pension'],
+  [/आवास|घरकुल|గృహం|గృహ నిర్మాణం/gu, 'housing'],
+  [/सौर|సౌర/gu, 'solar'],
+  [/राशन|रेशन|రేషన్/gu, 'ration'],
+  [/योजना|योजनेबद्दल|पथक|పథకం|పథకాలు|చూపించండి|చెప్పండి|बताइए|बताओ|दाखवा|सांगा/gu, ' '],
+];
 export function catalogueTerms(query) {
-  return tidy(query).split(/[^\p{L}\p{M}\p{N}-]+/u).filter((token) => token.length > 1 && !fillers.has(token));
+  const words = nativeTerms.reduce((value, [pattern, English]) => value.replace(pattern, ' ' + English + ' '), tidy(query));
+  return words.split(/[^\p{L}\p{M}\p{N}-]+/u).filter((token) => token.length > 1 && !fillers.has(token));
 }
 
 export function findDirectory(directory, { query = '', category = '', region = '' } = {}) {
