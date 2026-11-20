@@ -1,4 +1,5 @@
 export const bi = (en, hi) => ({ en, hi });
+const four = (en, hi, te, mr) => ({ en, hi, te, mr });
 
 export const categories = {
   agriculture: bi('Agriculture', 'कृषि'),
@@ -8,9 +9,11 @@ export const categories = {
   marriage: bi('Marriage', 'विवाह'),
   insurance: bi('Insurance', 'बीमा'),
   savings: bi('Savings', 'बचत'),
+  utilities: four('Utilities', 'उपयोगिता सेवाएँ', 'ప్రాథమిక సేవలు', 'मूलभूत सेवा'),
 };
 
 const field = (en, hi, type = 'boolean', options) => ({ question: bi(en, hi), type, options });
+const yesNo = (en, hi, te, mr) => ({ type: 'boolean', question: four(en, hi, te, mr) });
 export const fields = {
   age: field('How old is the person applying, in completed years?', 'आवेदक की पूरी उम्र कितने साल है?', 'age'),
   indian: field('Is the applicant an Indian citizen?', 'क्या आवेदक भारतीय नागरिक है?'),
@@ -33,6 +36,14 @@ export const fields = {
   scst: field('Does the student belong to SC or ST?', 'क्या छात्र अनुसूचित जाति या अनुसूचित जनजाति से है?'),
   girl: field('Are you opening this account as the parent or legal guardian of a girl?', 'क्या आप किसी लड़की के माता-पिता या कानूनी अभिभावक के रूप में खाता खोल रहे हैं?'),
   newSukanya: field('Does the girl have no existing Sukanya account, and is she within the family account limit including any multiple-birth exception?', 'क्या लड़की का पहले से सुकन्या खाता नहीं है और परिवार की खाता सीमा पूरी होती है, जुड़वाँ या एक साथ कई जन्म के अपवाद सहित?'),
+  taxpayer: yesNo('Does or did the applicant pay Indian income tax?', 'क्या आवेदक ने कभी भारतीय आयकर चुकाया है?', 'దరఖాస్తుదారు ఎప్పుడైనా భారత ఆదాయ పన్ను చెల్లించారా?', 'अर्जदाराने कधी भारतीय आयकर भरला आहे का?'),
+  newApy: yesNo('Is this a new Atal Pension account, with no existing APY account?', 'क्या यह नया अटल पेंशन खाता है और पहले से APY खाता नहीं है?', 'ఇది కొత్త అటల్ పెన్షన్ ఖాతానా, ఇప్పటికే APY ఖాతా లేదా?', 'हे नवीन अटल पेन्शन खाते आहे का आणि आधी APY खाते नाही ना?'),
+  woman: yesNo('Is the applicant a woman?', 'क्या आवेदक महिला है?', 'దరఖాస్తుదారు మహిళా?', 'अर्जदार महिला आहे का?'),
+  deprivation: yesNo('Does the household qualify under the Ujjwala deprivation declaration?', 'क्या परिवार उज्ज्वला वंचना घोषणा के अनुसार पात्र है?', 'ఉజ్వల దారిద్ర్య ప్రకటన ప్రకారం కుటుంబం అర్హమా?', 'उज्ज्वला वंचितता घोषणेनुसार कुटुंब पात्र आहे का?'),
+  lpg: yesNo('Does anyone in the same household already have an LPG connection?', 'क्या उसी परिवार में किसी के पास पहले से LPG कनेक्शन है?', 'అదే కుటుంబంలో ఎవరికైనా ఇప్పటికే LPG కనెక్షన్ ఉందా?', 'त्याच कुटुंबातील कोणाकडे आधीपासून LPG जोडणी आहे का?'),
+  artisan: yesNo('Does the applicant currently work independently in an eligible traditional trade, using hands and tools in the unorganised sector?', 'क्या आवेदक अभी असंगठित क्षेत्र में हाथ और औज़ार से पात्र पारंपरिक काम स्वरोज़गार में करता है?', 'అసంఘటిత రంగంలో చేతులు, పరికరాలతో అర్హమైన సంప్రదాయ వృత్తి స్వయం ఉపాధిగా చేస్తున్నారా?', 'अर्जदार असंघटित क्षेत्रात हात आणि साधनांनी पात्र पारंपरिक व्यवसाय स्वयंरोजगाराने करतो का?'),
+  vishFamily: yesNo('Is the applicant the only person in the family applying, with no family member in government service?', 'क्या परिवार में केवल आवेदक आवेदन कर रहा है और कोई सरकारी सेवा में नहीं है?', 'కుటుంబంలో ఒక్కరే దరఖాస్తు చేస్తున్నారా, ఎవరూ ప్రభుత్వ ఉద్యోగంలో లేరా?', 'कुटुंबातील एकच व्यक्ती अर्ज करत आहे आणि कोणी सरकारी सेवेत नाही का?'),
+  vishCredit: yesNo('In the last five years, did the applicant receive a similar business or self-employment loan other than fully repaid MUDRA or PM SVANidhi?', 'क्या पिछले पाँच साल में पूरी तरह चुकाए गए मुद्रा या पीएम स्वनिधि के अलावा समान ऋण लिया है?', 'గత ఐదేళ్లలో పూర్తిగా చెల్లించిన ముద్ర లేదా పీఎం స్వనిధి మినహా ఇలాంటి రుణం తీసుకున్నారా?', 'मागील पाच वर्षांत पूर्ण फेडलेल्या मुद्रा किंवा पीएम स्वनिधीखेरीज अशा प्रकारचे कर्ज घेतले का?'),
 };
 
 const rule = (key, op, value, en, hi) => ({ key, op, value, label: bi(en, hi) });
@@ -90,6 +101,44 @@ export const schemes = [
     [yes('girl', 'Parent or legal guardian of a girl', 'बालिका के माता-पिता या कानूनी अभिभावक'), rule('age', 'lt', 10, 'Girl is under age 10 when the account opens', 'खाता खोलते समय बालिका की उम्र 10 वर्ष से कम'), yes('inIndia', 'Child is resident in India', 'बालिका भारत की निवासी है'), yes('newSukanya', 'Account and family limits are satisfied', 'खाता और परिवार की सीमा पूरी है')],
     [bi('Girl’s birth certificate and guardian KYC documents', 'बालिका का जन्म प्रमाणपत्र और अभिभावक के केवाईसी दस्तावेज़')],
     [bi('Take the documents to a post office or authorised bank.', 'दस्तावेज़ डाकघर या अधिकृत बैंक ले जाएँ।'), bi('Complete the account opening form and make the initial deposit.', 'खाता खोलने का प्रपत्र भरें और शुरुआती जमा करें।')]),
+  scheme('apy', 'savings', four('Atal Pension Yojana', 'अटल पेंशन योजना', 'అటల్ పెన్షన్ యోజన', 'अटल पेन्शन योजना'),
+    four('A contributory pension for retirement.', 'सेवानिवृत्ति के लिए अंशदायी पेंशन।', 'పదవీ విరమణ కోసం చందాతో పెన్షన్.', 'सेवानिवृत्तीसाठी अंशदायी पेन्शन.'),
+    four('Monthly pension from age 60, based on contributions', 'अंशदान के अनुसार 60 वर्ष से मासिक पेंशन', 'చందాను బట్టి 60 ఏళ్ల నుండి నెలవారీ పెన్షన్', 'योगदानानुसार 60 वर्षांपासून मासिक पेन्शन'),
+    'https://financialservices.gov.in/atal-pension-yojana', 'https://pfrda.org.in/web/pfrda/w/faqs/atal-pension-yojana', /\bapy\b|atal pension|अटल पेंशन|అటల్ పెన్షన్|अटल पेन्शन/iu,
+    [
+      { ...rule('age', 'between', [18, 39]), label: four('Completed age 18 through 39 for new enrolment', 'नए नामांकन के लिए पूरी उम्र 18 से 39', 'కొత్త నమోదుకు పూర్తి వయసు 18 నుంచి 39', 'नवीन नोंदणीसाठी पूर्ण वय 18 ते 39') },
+      { ...yes('indian'), label: four('Indian citizenship', 'भारतीय नागरिकता', 'భారత పౌరసత్వం', 'भारतीय नागरिकत्व') },
+      { ...yes('bank'), label: four('Participating savings account', 'भाग लेने वाला बचत खाता', 'పాల్గొనే పొదుపు ఖాతా', 'सहभागी बचत खाते') },
+      { ...no('taxpayer'), label: four('Applicant has never been an income-tax payer', 'आवेदक आयकरदाता नहीं रहा है', 'దరఖాస్తుదారు ఆదాయ పన్ను చెల్లించలేదు', 'अर्जदाराने आयकर भरलेला नाही') },
+      { ...yes('newApy'), label: four('New account only', 'केवल नया खाता', 'కొత్త ఖాతా మాత్రమే', 'फक्त नवीन खाते') },
+    ],
+    [four('Savings account details and bank identity requirements', 'बचत खाते के विवरण और बैंक के पहचान दस्तावेज़', 'పొదుపు ఖాతా వివరాలు, బ్యాంకు గుర్తింపు పత్రాలు', 'बचत खात्याचा तपशील व बँकेची ओळखपत्रे')],
+    [four('Ask your participating bank or post office to enrol and choose a pension contribution.', 'भागीदार बैंक या डाकघर से नामांकन करें और पेंशन अंशदान चुनें।', 'పాల్గొనే బ్యాంకు లేదా పోస్టాఫీసులో నమోదు చేసి చందా ఎంచుకోండి.', 'सहभागी बँक किंवा पोस्टात नोंदणी करून योगदान निवडा.')]),
+  scheme('pmuy2', 'utilities', four('Ujjwala 2.0', 'उज्ज्वला 2.0', 'ఉజ్వల 2.0', 'उज्ज्वला 2.0'),
+    four('LPG connection assistance for eligible low-income households.', 'पात्र कम आय वाले परिवारों को LPG कनेक्शन सहायता।', 'అర్హమైన తక్కువ ఆదాయ కుటుంబాలకు LPG కనెక్షన్ సహాయం.', 'पात्र कमी उत्पन्नाच्या कुटुंबांसाठी LPG जोडणी मदत.'),
+    four('Deposit-free LPG connection for qualifying households', 'पात्र परिवारों को जमा-मुक्त LPG कनेक्शन', 'అర్హ కుటుంబాలకు డిపాజిట్ లేని LPG కనెక్షన్', 'पात्र कुटुंबांना ठेवीशिवाय LPG जोडणी'),
+    'https://www.myscheme.gov.in/schemes/pmuy2', 'https://pmuy.gov.in/Ujjwala2.html', /ujjwala|\bpmuy\b|उज्ज्वला|ఉజ్వల/iu,
+    [
+      { ...rule('age', 'gte', 18), label: four('Applicant has completed 18 years', 'आवेदक की उम्र कम से कम 18 वर्ष', 'దరఖాస్తుదారు వయసు కనీసం 18', 'अर्जदाराचे वय किमान 18 वर्षे') },
+      { ...yes('woman'), label: four('Connection is for a woman', 'कनेक्शन महिला के नाम पर है', 'కనెక్షన్ మహిళ పేరుతో ఉంటుంది', 'जोडणी महिलेच्या नावाने आहे') },
+      { ...no('lpg'), label: four('No existing household LPG connection', 'परिवार के पास पहले से LPG नहीं है', 'కుటుంబంలో ఇప్పటికే LPG కనెక్షన్ లేదు', 'कुटुंबात आधीपासून LPG जोडणी नाही') },
+      { ...yes('deprivation'), label: four('Household meets the official deprivation criteria', 'परिवार आधिकारिक वंचना मानदंड पूरा करता है', 'కుటుంబం అధికారిక దారిద్ర్య ప్రమాణాన్ని తీరుస్తుంది', 'कुटुंब अधिकृत वंचितता निकष पूर्ण करते') },
+    ],
+    [four('KYC, family composition proof, bank details and deprivation declaration', 'केवाईसी, परिवार का प्रमाण, बैंक विवरण और वंचना घोषणा', 'KYC, కుటుంబ వివరాల రుజువు, బ్యాంకు వివరాలు, దారిద్ర్య ప్రకటన', 'केवायसी, कुटुंबाचा पुरावा, बँक तपशील व वंचितता घोषणा')],
+    [four('Choose an LPG distributor on the official portal or visit a distributor or service centre.', 'पोर्टल पर LPG वितरक चुनें या वितरक अथवा सेवा केंद्र पर जाएँ।', 'పోర్టల్‌లో LPG పంపిణీదారుని ఎంచుకోండి లేదా పంపిణీ కేంద్రాన్ని సందర్శించండి.', 'पोर्टलवर LPG वितरक निवडा किंवा वितरक अथवा सेवा केंद्रात जा.')]),
+  scheme('pm-vishwakarma', 'business', four('PM Vishwakarma', 'पीएम विश्वकर्मा', 'పీఎం విశ్వకర్మ', 'पीएम विश्वकर्मा'),
+    four('Training, tools and credit support for eligible traditional artisans.', 'पात्र पारंपरिक कारीगरों के लिए प्रशिक्षण, औज़ार और ऋण सहायता।', 'అర్హ సంప్రదాయ కళాకారులకు శిక్షణ, పరికరాలు, రుణ సహాయం.', 'पात्र पारंपरिक कारागिरांना प्रशिक्षण, साधने व कर्ज सहाय्य.'),
+    four('Skill training, toolkit incentive and phased credit', 'कौशल प्रशिक्षण, औज़ार प्रोत्साहन और चरणबद्ध ऋण', 'నైపుణ్య శిక్షణ, పరికరాల ప్రోత్సాహకం, దశలవారీ రుణం', 'कौशल्य प्रशिक्षण, साधन प्रोत्साहन व टप्प्याटप्प्याने कर्ज'),
+    'https://www.pib.gov.in/PressNoteDetails.aspx?ModuleId=3&NoteId=159998&id=159998&lang=1&reg=3', 'https://pmvishwakarma.gov.in/', /vishwakarma|विश्वकर्मा|విశ్వకర్మ/iu,
+    [
+      { ...yes('artisan'), label: four('Current self-employment in a notified traditional trade', 'अधिसूचित पारंपरिक काम में मौजूदा स्वरोज़गार', 'ప్రకటిత సంప్రదాయ వృత్తిలో ప్రస్తుత స్వయం ఉపాధి', 'अधिसूचित पारंपरिक व्यवसायात सध्याचा स्वयंरोजगार') },
+      { ...rule('age', 'gte', 18), label: four('Age 18 or older', 'उम्र 18 वर्ष या अधिक', 'వయసు 18 లేదా ఎక్కువ', 'वय 18 वर्षे किंवा अधिक') },
+      { ...yes('indian'), label: four('Indian citizenship', 'भारतीय नागरिकता', 'భారత పౌరసత్వం', 'भारतीय नागरिकत्व') },
+      { ...yes('vishFamily'), label: four('Single eligible applicant per family, with no government service in the family', 'परिवार से एक आवेदक और कोई सरकारी सेवा में नहीं', 'కుటుంబం నుంచి ఒక్క దరఖాస్తుదారు, ప్రభుత్వ ఉద్యోగం లేదు', 'कुटुंबातून एक अर्जदार असून कोणी सरकारी सेवेत नाही') },
+      { ...no('vishCredit'), label: four('Meets the previous credit restriction', 'पिछले ऋण की शर्त पूरी', 'మునుపటి రుణ నిబంధనను తీరుస్తుంది', 'मागील कर्जाची अट पूर्ण') },
+    ],
+    [four('Aadhaar, bank details and family information', 'आधार, बैंक और परिवार के विवरण', 'ఆధార్, బ్యాంకు, కుటుంబ వివరాలు', 'आधार, बँक आणि कुटुंब तपशील')],
+    [four('Review the notified trades and register through a Common Service Centre for verification.', 'अधिसूचित काम की सूची देखकर सत्यापन के लिए कॉमन सर्विस सेंटर से पंजीकरण करें।', 'ప్రకటిత వృత్తుల జాబితా చూసి ధ్రువీకరణకు కామన్ సర్వీస్ సెంటర్ ద్వారా నమోదు చేయండి.', 'अधिसूचित व्यवसाय पाहून पडताळणीसाठी कॉमन सर्व्हिस सेंटरमधून नोंदणी करा.')]),
 ];
 
 export const lifeEvents = [

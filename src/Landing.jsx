@@ -149,7 +149,7 @@ export function Landing({ lang, start, browse, go, categoryIcons }) {
       <div className="category-grid">{keys.map((key) => {
         const Icon = categoryIcons[key];
         const count = schemes.filter((scheme) => scheme.category === key).length;
-        return <button className={'category-card tint-' + key} key={key} onClick={() => browse(key)}><div className="tile-icon"><Icon size={24} /></div><b>{local(categories[key], lang)}</b><span>{new Intl.NumberFormat(lang).format(count)} {t(count === 1 ? 'scheme' : 'schemes', 'योजना', 'పథకాలు', 'योजना')}</span></button>;
+        return <button className={'category-card tint-' + key} key={key} onClick={() => browse(key)}><div className="tile-icon"><Icon size={24} /></div><b>{local(categories[key], lang)}</b><span>{new Intl.NumberFormat(lang).format(count)} {t(count === 1 ? 'ARCEUS check' : 'ARCEUS checks', 'ARCEUS पात्रता जाँच', 'ARCEUS అర్హత తనిఖీలు', 'ARCEUS पात्रता तपासण्या')}</span></button>;
       })}</div>
     </section></div>
     <section className="wrap landing-section life-section">

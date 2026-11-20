@@ -1,15 +1,46 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { locales } from './languages.js';
+import { voiceHeaders } from './backend.js';
 
-export function useSpeech(lang, onTurn, onError, onPartial) {
+function listenForPause(stream, finish) {
+  const AudioContext = window.AudioContext ?? window.webkitAudioContext;
+  if (!AudioContext) return () => {};
+  const context = new AudioContext();
+  const analyser = context.createAnalyser();
+  const source = context.createMediaStreamSource(stream);
+  source.connect(analyser);
+  void context.resume().catch(() => {});
+  const samples = new Float32Array(analyser.fftSize);
+  let lastVoice = 0;
+  let voicedFrames = 0;
+  const timer = setInterval(() => {
+    if (context.state !== 'running') return;
+    analyser.getFloatTimeDomainData(samples);
+    let energy = 0;
+    for (const value of samples) energy += value * value;
+    if (Math.sqrt(energy / samples.length) > .018) {
+      lastVoice = performance.now();
+      voicedFrames++;
+    } else if (voicedFrames >= 4 && performance.now() - lastVoice > 1300) {
+      finish();
+    }
+  }, 65);
+  return () => {
+    clearInterval(timer);
+    void context.close().catch(() => {});
+  };
+}
+
+export function useSpeech(lang, onTurn, onError, onPartial, { signedIn = false, handsFree = false } = {}) {
   const [status, setStatus] = useState('idle');
   const recognition = useRef(null);
   const utterance = useRef(null);
   const managed = useRef(null);
   const useProvider = useRef(false);
   const [providerReady, setProviderReady] = useState(false);
+  const [signInRequired, setSignInRequired] = useState(false);
   const callbacks = useRef({});
-  callbacks.current = { onTurn, onError, onPartial, lang };
+  callbacks.current = { onTurn, onError, onPartial, lang, handsFree };
 
   const stop = useCallback(() => {
     const current = recognition.current;
@@ -26,18 +57,19 @@ export function useSpeech(lang, onTurn, onError, onPartial) {
   useEffect(() => {
     stop();
     return stop;
-  }, [lang, stop]);
+  }, [lang, signedIn, stop]);
 
   useEffect(() => {
     const controller = new AbortController();
     fetch('/api/voice/config', { signal: controller.signal })
       .then((response) => response.ok ? response.json() : null)
       .then((config) => {
-        useProvider.current = config?.managed === true;
+        setSignInRequired(config?.managed === true && config.authRequired && !signedIn);
+        useProvider.current = config?.managed === true && (!config.authRequired || signedIn);
         setProviderReady(useProvider.current);
       }).catch(() => {});
     return () => controller.abort();
-  }, []);
+  }, [signedIn]);
 
   async function captureManaged() {
     const operation = {};
@@ -57,8 +89,11 @@ export function useSpeech(lang, onTurn, onError, onPartial) {
       const chunks = [];
       const controller = new AbortController();
       const language = locales[callbacks.current.lang];
+      let stopDetector = () => {};
       const timer = setTimeout(() => operation.finish(), 25000);
       operation.finish = () => {
+        stopDetector();
+        stopDetector = () => {};
         if (recorder.state !== 'inactive') recorder.stop();
         release();
       };
@@ -79,7 +114,7 @@ export function useSpeech(lang, onTurn, onError, onPartial) {
         setStatus('processing');
         try {
           const clip = new Blob(chunks, { type: recorder.mimeType || chunks[0]?.type || 'audio/webm' });
-          const response = await fetch('/api/voice/recognise?lang=' + language, { method: 'POST', body: clip, signal: controller.signal });
+          const response = await fetch('/api/voice/recognise?lang=' + language, { method: 'POST', body: clip, headers: await voiceHeaders(), signal: controller.signal });
           if (!response.ok) throw new Error('Voice unavailable');
           const { transcript } = await response.json();
           if (managed.current !== operation) return;
@@ -96,6 +131,9 @@ export function useSpeech(lang, onTurn, onError, onPartial) {
         }
       };
       recorder.start();
+      if (callbacks.current.handsFree) {
+        try { stopDetector = listenForPause(stream, operation.finish); } catch { /* Manual submission remains available. */ }
+      }
       setStatus('listening');
     } catch {
       if (managed.current !== operation) return;
@@ -121,7 +159,7 @@ export function useSpeech(lang, onTurn, onError, onPartial) {
     setStatus('speaking');
     try {
       const response = await fetch('/api/voice/speak?lang=' + locales[callbacks.current.lang], {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }), signal: controller.signal,
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...await voiceHeaders() }, body: JSON.stringify({ text }), signal: controller.signal,
       });
       if (!response.ok) throw new Error('Voice unavailable');
       const content = await response.blob();
@@ -253,7 +291,7 @@ export function useSpeech(lang, onTurn, onError, onPartial) {
   }, []);
 
   return {
-    status, start, stop, speak, providerReady,
+    status, start, stop, speak, providerReady, signInRequired,
     finish() {
       const finish = managed.current?.finish;
       if (finish) finish();

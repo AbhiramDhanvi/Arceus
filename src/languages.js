@@ -30,10 +30,11 @@ const prompts = [
 ];
 
 const localize = (value, translations) => Object.assign(value, { te: translations[0], mr: translations[1] });
-Object.values(fields).forEach((item, index) => localize(item.question, prompts[index]));
+Object.values(fields).forEach((item, index) => { if (prompts[index]) localize(item.question, prompts[index]); });
 Object.values(categories).forEach((item, index) => localize(item, [
   ['వ్యవసాయం', 'शेती'], ['విద్య', 'शिक्षण'], ['ఆరోగ్యం', 'आरोग्य'],
   ['వ్యాపారం & రుణాలు', 'व्यवसाय व कर्ज'], ['వివాహం', 'विवाह'], ['బీమా', 'विमा'], ['పొదుపు', 'बचत'],
+  ['ప్రాథమిక సేవలు', 'मूलभूत सेवा'],
 ][index]));
 localize(fields.state.options.telangana, ['తెలంగాణ', 'तेलंगणा']);
 localize(fields.state.options.other, ['ఇతర రాష్ట్రం', 'इतर राज्य']);
@@ -94,6 +95,7 @@ const content = [
 ];
 schemes.forEach((scheme, index) => {
   const item = content[index];
+  if (!item) return;
   for (const key of ['name', 'summary', 'benefit']) localize(scheme[key], item[key]);
   scheme.rules.forEach((rule, position) => localize(rule.label, item.rules[position]));
   scheme.steps.forEach((step, position) => localize(step, item.steps[position]));

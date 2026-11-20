@@ -1,13 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Bell, CalendarDays, Check, ClipboardList, Download, ExternalLink, FileText, FolderLock,
-  LogOut, Plus, Save, ScanLine, ShieldCheck, Trash2, Upload, Users,
+  Github, LogOut, Plus, Save, ScanLine, ShieldCheck, Trash2, Upload, Users,
 } from 'lucide-react';
 import { schemes, fields } from './catalog.js';
 import { copy, locales, local } from './languages.js';
 import { evaluate } from './eligibility.js';
 import { words } from './assistant-copy.js';
-import { asDateInput, dataOrThrow, documentBucket, memberFacts, memberMilestones, supabase } from './backend.js';
+import { asDateInput, authCallback, dataOrThrow, documentBucket, memberFacts, memberMilestones, supabase } from './backend.js';
 import { documentMismatches, extractDocument, imageLimit, imageMime, ocrLanguages } from './documents.js';
 
 const labels = {
@@ -50,11 +50,31 @@ function ConfirmDelete({ lang, onDelete }) {
   return armed ? <div className="delete-confirm"><button type="button" className="button danger compact" onClick={() => { setArmed(false); onDelete(); }}>{t('Confirm deletion', 'हटाने की पुष्टि', 'తొలగింపు నిర్ధారించండి', 'काढण्याची खात्री करा')}</button><button type="button" className="button outline compact" onClick={() => setArmed(false)}>{t('Cancel', 'रद्द करें', 'రద్దు', 'रद्द करा')}</button></div> : <button type="button" className="icon-button delete-button" aria-label={local(labels.delete, lang)} onClick={() => setArmed(true)}><Trash2 size={17} /></button>;
 }
 
-function AuthPanel({ lang }) {
-  const [create, setCreate] = useState(false);
+function AuthPanel({ lang, recovery, account, onRecovered }) {
+  const [mode, setMode] = useState('signin');
+  const create = mode === 'signup';
+  const forgot = mode === 'forgot';
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const t = (...text) => local(copy(...text), lang);
+  const invalidCallback = account.callbackError || (recovery && !account.user);
+  const [linkError, setLinkError] = useState(Boolean(invalidCallback));
+
+  function changeMode(next) {
+    setMode(next);
+    setFeedback(null);
+    setLinkError(false);
+  }
+  async function github() {
+    setFeedback(null);
+    setBusy(true);
+    try {
+      dataOrThrow(await supabase.auth.signInWithOAuth({ provider: 'github', options: { redirectTo: authCallback() } }));
+    } catch {
+      setFeedback({ message: t('GitHub sign-in is unavailable. Try again later.', 'GitHub साइन-इन उपलब्ध नहीं है। बाद में कोशिश करें।', 'GitHub సైన్ ఇన్ అందుబాటులో లేదు. తర్వాత ప్రయత్నించండి.', 'GitHub साइन इन उपलब्ध नाही. नंतर प्रयत्न करा.'), error: true });
+      setBusy(false);
+    }
+  }
   async function submit(event) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -62,28 +82,49 @@ function AuthPanel({ lang }) {
     setBusy(true);
     setFeedback(null);
     try {
-      if (create) {
-        const data = dataOrThrow(await supabase.auth.signUp({ ...credentials, options: { emailRedirectTo: window.location.origin + '/#workspace' } }));
-        if (!data.session) setFeedback({ message: t('Check your email for a confirmation link, then sign in.', 'ईमेल में पुष्टि लिंक देखें, फिर साइन इन करें।', 'ఈమెయిల్‌లో నిర్ధారణ లింక్ చూసి సైన్ ఇన్ చేయండి.', 'ईमेलमधील पुष्टी दुवा तपासा आणि मग साइन इन करा.') });
+      if (recovery && account.user) {
+        if (credentials.password !== form.get('confirmPassword')) {
+          setFeedback({ message: t('The passwords do not match.', 'पासवर्ड मेल नहीं खाते।', 'పాస్‌వర్డ్‌లు సరిపోలడం లేదు.', 'पासवर्ड जुळत नाहीत.'), error: true });
+          return;
+        }
+        dataOrThrow(await supabase.auth.updateUser({ password: credentials.password }));
+        onRecovered();
+      } else if (forgot) {
+        const { error } = await supabase.auth.resetPasswordForEmail(credentials.email, { redirectTo: authCallback(true) });
+        if (error?.code === 'over_email_send_rate_limit') throw error;
+        setFeedback({ message: t('If the account supports email recovery, a reset link will arrive shortly.', 'ईमेल से रिकवरी उपलब्ध होने पर रीसेट लिंक भेजा जाएगा।', 'ఈమెయిల్ రికవరీ ఉంటే రీసెట్ లింక్ వస్తుంది.', 'ईमेल पुनर्प्राप्ती उपलब्ध असल्यास रीसेट दुवा येईल.') });
+      } else if (create) {
+        const data = dataOrThrow(await supabase.auth.signUp({ ...credentials, options: { emailRedirectTo: authCallback() } }));
+        if (!data.session) setFeedback({ message: t('Open the confirmation email in this browser to finish signing up.', 'साइन-अप पूरा करने के लिए पुष्टि ईमेल इसी ब्राउज़र में खोलें।', 'సైన్ అప్ పూర్తి చేయడానికి నిర్ధారణ ఈమెయిల్‌ని ఈ బ్రౌజర్‌లో తెరవండి.', 'नोंदणी पूर्ण करण्यासाठी पुष्टी ईमेल याच ब्राउझरमध्ये उघडा.') });
       } else {
         dataOrThrow(await supabase.auth.signInWithPassword(credentials));
       }
     } catch (error) {
-      setFeedback({ message: errorText(error), error: true });
+      const message = error?.code === 'email_address_not_authorized'
+        ? t('Email verification is currently available to project team members. Please use GitHub to sign up.', 'ईमेल पुष्टि अभी प्रोजेक्ट टीम के लिए है। साइन-अप के लिए GitHub इस्तेमाल करें।', 'ఈమెయిల్ నిర్ధారణ ప్రస్తుతం ప్రాజెక్ట్ బృందానికి అందుబాటులో ఉంది. సైన్ అప్ కోసం GitHub వాడండి.', 'ईमेल पुष्टी सध्या प्रकल्प टीमसाठी आहे. नोंदणीसाठी GitHub वापरा.')
+        : error?.code === 'invalid_credentials'
+          ? t('Check your email and password and try again.', 'ईमेल और पासवर्ड जाँचकर फिर कोशिश करें।', 'ఈమెయిల్, పాస్‌వర్డ్ చూసి మళ్లీ ప్రయత్నించండి.', 'ईमेल व पासवर्ड तपासून पुन्हा प्रयत्न करा.')
+          : errorText(error);
+      setFeedback({ message, error: true });
     } finally {
       setBusy(false);
     }
   }
+  const resetting = recovery && Boolean(account.user);
   return <div className="workspace-auth panel">
     <div className="tile-icon"><ShieldCheck size={24} /></div>
-    <h2>{create ? t('Create your account', 'अपना खाता बनाएँ', 'మీ ఖాతాను సృష్టించండి', 'तुमचे खाते तयार करा') : t('Sign in to your workspace', 'कार्यक्षेत्र में साइन इन करें', 'వర్క్‌స్పేస్‌లో సైన్ ఇన్ చేయండి', 'कार्यक्षेत्रात साइन इन करा')}</h2>
+    <h2>{resetting || forgot ? t('Reset your password', 'पासवर्ड रीसेट करें', 'పాస్‌వర్డ్ రీసెట్ చేయండి', 'पासवर्ड रीसेट करा') : create ? t('Create your account', 'अपना खाता बनाएँ', 'మీ ఖాతాను సృష్టించండి', 'तुमचे खाते तयार करा') : t('Sign in to your workspace', 'कार्यक्षेत्र में साइन इन करें', 'వర్క్‌స్పేస్‌లో సైన్ ఇన్ చేయండి', 'कार्यक्षेत्रात साइन इन करा')}</h2>
     <p>{t('Save applications, organise family checks, and keep your documents in a private workspace.', 'आवेदन सहेजें, परिवार की जाँच व्यवस्थित करें और दस्तावेज़ निजी कार्यक्षेत्र में रखें।', 'దరఖాస్తులు, కుటుంబ తనిఖీలు, పత్రాలను ప్రైవేట్ వర్క్‌స్పేస్‌లో ఉంచండి.', 'अर्ज, कुटुंब तपासण्या आणि कागदपत्रे खासगी कार्यक्षेत्रात जतन करा.')}</p>
+    {linkError && <p role="alert" className="form-alert">{t('The sign-in link could not be used. Try again in the same browser.', 'साइन-इन लिंक काम नहीं किया। इसी ब्राउज़र में दोबारा कोशिश करें।', 'సైన్ ఇన్ లింక్ పనిచేయలేదు. అదే బ్రౌజర్‌లో మళ్లీ ప్రయత్నించండి.', 'साइन इन दुवा वापरता आला नाही. याच ब्राउझरमध्ये पुन्हा प्रयत्न करा.')}</p>}
     <form className="form-grid single" onSubmit={submit}>
-      <label>{t('Email address', 'ईमेल पता', 'ఈమెయిల్ చిరునామా', 'ईमेल पत्ता')}<input type="email" name="email" required autoComplete="email" /></label>
-      <label>{t('Password', 'पासवर्ड', 'పాస్‌వర్డ్', 'पासवर्ड')}<input type="password" name="password" required minLength={create ? 8 : 1} autoComplete={create ? 'new-password' : 'current-password'} /></label>
+      {!resetting && !forgot && <button className="button outline" type="button" disabled={busy} onClick={github}><Github size={18} />{t('Continue with GitHub', 'GitHub से जारी रखें', 'GitHub తో కొనసాగించండి', 'GitHub सोबत सुरू ठेवा')}</button>}
+      {!resetting && <label>{t('Email address', 'ईमेल पता', 'ఈమెయిల్ చిరునామా', 'ईमेल पत्ता')}<input type="email" name="email" required autoComplete="email" /></label>}
+      {!forgot && <label>{t('Password', 'पासवर्ड', 'పాస్‌వర్డ్', 'पासवर्ड')}<input type="password" name="password" required minLength={create || resetting ? 8 : 1} autoComplete={create || resetting ? 'new-password' : 'current-password'} /></label>}
+      {resetting && <label>{t('Confirm password', 'पासवर्ड की पुष्टि करें', 'పాస్‌వర్డ్ నిర్ధారించండి', 'पासवर्डची पुष्टी करा')}<input type="password" name="confirmPassword" required minLength={8} autoComplete="new-password" /></label>}
       {feedback && <div role="status" className={feedback.error ? 'form-alert' : 'form-success'}>{feedback.message}</div>}
-      <button className="button primary" disabled={busy}>{create ? t('Create account', 'खाता बनाएँ', 'ఖాతా సృష్టించండి', 'खाते तयार करा') : t('Sign in', 'साइन इन', 'సైన్ ఇన్', 'साइन इन')}</button>
-      <button className="text-button" type="button" onClick={() => { setCreate(!create); setFeedback(null); }}>{create ? t('Already have an account? Sign in', 'खाता है? साइन इन करें', 'ఖాతా ఉందా? సైన్ ఇన్ చేయండి', 'खाते आहे? साइन इन करा') : t('Create an account', 'खाता बनाएँ', 'ఖాతా సృష్టించండి', 'खाते तयार करा')}</button>
+      <button className="button primary" disabled={busy}>{resetting ? local(labels.save, lang) : forgot ? t('Send reset link', 'रीसेट लिंक भेजें', 'రీసెట్ లింక్ పంపండి', 'रीसेट दुवा पाठवा') : create ? t('Create account', 'खाता बनाएँ', 'ఖాతా సృష్టించండి', 'खाते तयार करा') : t('Sign in', 'साइन इन', 'సైన్ ఇన్', 'साइन इन')}</button>
+      {!resetting && <button className="text-button" type="button" onClick={() => changeMode(mode === 'signin' ? 'signup' : 'signin')}>{mode !== 'signin' ? t('Back to sign in', 'साइन-इन पर लौटें', 'సైన్ ఇన్‌కు తిరిగి వెళ్ళండి', 'साइन इनकडे परत जा') : t('Create an account', 'खाता बनाएँ', 'ఖాతా సృష్టించండి', 'खाते तयार करा')}</button>}
+      {!resetting && mode === 'signin' && <button className="text-button" type="button" onClick={() => changeMode('forgot')}>{t('Forgot your password?', 'पासवर्ड भूल गए?', 'పాస్‌వర్డ్ మర్చిపోయారా?', 'पासवर्ड विसरलात?')}</button>}
     </form>
   </div>;
 }
@@ -442,12 +483,16 @@ function SignedWorkspace({ lang, user, request, start, openScheme }) {
 }
 
 export function Workspace({ lang, account, request, start, openScheme }) {
+  const [recovered, setRecovered] = useState(false);
   const t = (...text) => local(copy(...text), lang);
   return <section className="wrap page-section workspace-page">
     <div className="eyebrow"><span />{t('YOUR PRIVATE RECORDS', 'आपके निजी रिकॉर्ड', 'మీ ప్రైవేట్ రికార్డులు', 'तुमच्या खासगी नोंदी')}</div>
     <h1 className="page-title">{t('My workspace', 'मेरा कार्यक्षेत्र', 'నా వర్క్‌స్పేస్', 'माझे कार्यक्षेत्र')}</h1>
     {account.loading ? <div className="empty" role="status">{t('Checking your account…', 'खाता जाँच रहे हैं…', 'ఖాతా తనిఖీ జరుగుతోంది…', 'खाते तपासत आहोत…')}</div>
       : !account.configured ? <div className="empty"><FolderLock /><p>{t('Connect Supabase to enable private records.', 'निजी रिकॉर्ड के लिए Supabase कनेक्ट करें।', 'ప్రైవేట్ రికార్డులకు Supabase కనెక్ట్ చేయండి.', 'खासगी नोंदींसाठी Supabase जोडा.')}</p></div>
-      : !account.user ? <AuthPanel lang={lang} /> : <SignedWorkspace key={account.user.id} lang={lang} user={account.user} request={request} start={start} openScheme={openScheme} />}
+      : !account.user || (account.recovery && !recovered) ? <AuthPanel lang={lang} account={account} recovery={account.recovery && !recovered} onRecovered={() => {
+        window.history.replaceState(null, '', '/#workspace');
+        setRecovered(true);
+      }} /> : <SignedWorkspace key={account.user.id} lang={lang} user={account.user} request={request} start={start} openScheme={openScheme} />}
   </section>;
 }

@@ -11,6 +11,7 @@ export const words = {
   pending: copy('More details needed', 'और जानकारी चाहिए', 'మరిన్ని వివరాలు కావాలి', 'आणखी माहिती हवी'),
   welcome: copy('Namaste! Tell me which scheme you want to check, or what kind of help you need. You can speak or type.', 'नमस्ते! आप कौन-सी योजना जाँचना चाहते हैं या किस तरह की मदद चाहिए? बोलें या लिखें।', 'నమస్తే! ఏ పథకం చూడాలి లేదా ఎలాంటి సహాయం కావాలో చెప్పండి. మాట్లాడవచ్చు లేదా టైప్ చేయవచ్చు.', 'नमस्कार! कोणती योजना तपासायची आहे किंवा कोणती मदत हवी ते सांगा. तुम्ही बोलू किंवा लिहू शकता.'),
   discover: copy('Which type of help are you looking for? Try farming, education, healthcare, insurance, business loans, marriage or savings.', 'किस तरह की मदद चाहिए? कृषि, शिक्षा, स्वास्थ्य, बीमा, व्यवसाय ऋण, विवाह या बचत में से चुनें।', 'ఏ సహాయం కావాలి? వ్యవసాయం, విద్య, ఆరోగ్యం, బీమా, వ్యాపార రుణం, వివాహం లేదా పొదుపు ఎంచుకోండి.', 'कोणती मदत हवी आहे? शेती, शिक्षण, आरोग्य, विमा, व्यवसाय कर्ज, लग्न किंवा बचत निवडा.'),
+  directory: copy('I found these in the myScheme directory. Open the official listing to check the current rules and application steps.', 'ये योजनाएँ myScheme में मिलीं। मौजूदा नियम और आवेदन के चरण आधिकारिक पेज पर देखें।', 'ఈ పథకాలు myScheme లో దొరికాయి. ప్రస్తుత నియమాలు, దరఖాస్తు దశలకు అధికారిక పేజీ చూడండి.', 'या योजना myScheme मध्ये मिळाल्या. सध्याचे निकष व अर्जाच्या पायऱ्यांसाठी अधिकृत पान उघडा.'),
   unclear: copy('I need a clearer answer.', 'कृपया थोड़ा स्पष्ट जवाब दें।', 'దయచేసి మరింత స్పష్టంగా చెప్పండి.', 'कृपया थोडे स्पष्ट उत्तर द्या.'),
   conflict: copy('I heard conflicting answers. Please confirm one answer.', 'आपके जवाब अलग-अलग हैं। कृपया एक सही जवाब बताएँ।', 'పరస్పర విరుద్ధమైన సమాధానాలు వచ్చాయి. దయచేసి ఒక్క సమాధానం నిర్ధారించండి.', 'परस्परविरोधी उत्तरे मिळाली. कृपया एक उत्तर निश्चित करा.'),
   steps: copy('Application steps', 'आवेदन के चरण', 'దరఖాస్తు దశలు', 'अर्जाच्या पायऱ्या'),
@@ -36,6 +37,7 @@ export function questionText(reply, lang) {
 }
 
 export function spokenReply(reply, lang) {
+  if (reply.kind === 'directory') return [local(words.directory, lang), ...reply.items.map(({ title }) => title)].join(' ');
   if (reply.kind === 'question') {
     const { scope, preface, prompt, advice } = questionText(reply, lang);
     return [scope, preface, prompt, advice].filter(Boolean).join(' ');

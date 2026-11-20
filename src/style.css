@@ -108,6 +108,14 @@ main { flex: 1; }
 .page-lead { margin-top: 12px; }
 .search-field { margin-top: 28px; max-width: 540px; border: 1px solid var(--line); border-radius: 12px; background: var(--white); padding: 0 14px; display: flex; align-items: center; gap: 10px; color: var(--accent); }
 .search-field input { flex: 1; min-width: 0; border: 0; background: transparent; padding: 13px 2px; color: var(--ink); outline-offset: -2px; }
+.directory-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 25px; }
+.directory-controls .search-field { margin-top: 0; flex: 1 1 255px; }
+.directory-controls > select { min-height: 47px; background: var(--white); border: 1px solid var(--line); border-radius: 10px; color: var(--ink); padding: 8px 12px; max-width: 100%; }
+.directory-summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding-bottom: 17px; font-size: .9rem; color: var(--muted); }
+.directory-summary label { display: flex; align-items: center; gap: 6px; }
+.directory-card .button { margin-top: auto; }
+.directory-tags { font-size: .9rem; }
+.directory-footer { margin-top: 20px; color: var(--accent); }
 .filters { display: flex; column-gap: 8px; row-gap: 8px; flex-wrap: wrap; margin-block: 20px; }
 .chip { border-color: var(--line); background: var(--white); color: #405149; min-height: 36px; border-radius: 999px; font-size: .88rem; padding: 7px 12px; }
 .chip.selected { background: #e7efdb; border-color: #bdcfb1; color: #2c593f; }
@@ -301,7 +309,6 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
 .directory-ground .landing-section { padding-block: 67px 72px; }
 .directory-ground .category-grid { grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 11px; }
 .directory-ground .category-card { grid-column: span 3; background: #f8f8eb; padding: 18px; }
-.directory-ground .category-card:nth-child(n+5) { grid-column: span 4; }
 .life-intro { display: grid; grid-template-columns: minmax(0, 1.06fr) minmax(0, .94fr); gap: clamp(23px, 7.5vw, 96px); align-items: center; margin-bottom: 29px; }
 .life-intro img { width: 100%; height: auto; max-height: 400px; object-fit: cover; border-radius: 7px 45px 7px 7px; }
 .life-intro .button { margin-top: 20px; }

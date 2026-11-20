@@ -31,3 +31,24 @@ test('managed Telugu and Marathi voice routes forward formats and keep the key s
   assert.equal(badLang.status, 400);
   assert.equal(calls.length, 2);
 });
+
+test('public speech requires verified identity and rejects cross-origin callers', async (t) => {
+  let forwarded = 0;
+  const token = 'test-verified-token-with-30-characters';
+  const origin = 'https://arceus.example';
+  const server = createServer(voiceMiddleware('mock-server-key', async () => {
+    forwarded++;
+    return Response.json({ audios: [Buffer.from('audio').toString('base64')] });
+  }, { publicOrigin: origin, verifyUser: async (value) => value === token ? 'confirmed-user' : null }));
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => server.close());
+  const base = 'http://127.0.0.1:' + server.address().port;
+  assert.deepEqual(await (await fetch(base + '/config')).json(), { managed: true, authRequired: true });
+  const speak = (headers) => fetch(base + '/speak?lang=hi-IN', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify({ text: 'नमस्ते' }),
+  });
+  assert.equal((await speak({ Origin: origin })).status, 401);
+  assert.equal((await speak({ Origin: 'https://other.example', Authorization: 'Bearer ' + token })).status, 403);
+  assert.equal((await speak({ Origin: origin, Authorization: 'Bearer ' + token })).status, 200);
+  assert.equal(forwarded, 1);
+});

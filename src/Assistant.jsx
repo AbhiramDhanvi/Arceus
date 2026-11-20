@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AudioLines, Check, ChevronRight, ExternalLink, FileText, Mic, Play, RotateCcw, Send, Sparkles, Square, Volume2, X } from 'lucide-react';
 import { categories, fields, schemes } from './catalog.js';
-import { advance, initialConversation } from './eligibility.js';
+import { advance, detectScope, initialConversation, normalize } from './eligibility.js';
 import { questionText, spokenReply, words } from './assistant-copy.js';
 import { copy, languageNames, local } from './languages.js';
 import { useSpeech } from './use-speech.js';
+import { catalogueTerms, directoryOnly, findDirectory, loadDirectory } from './directory.js';
 
 export function SchemeDetails({ scheme, lang, close, check, save }) {
   const dialog = useRef(null);
@@ -47,7 +48,7 @@ function Result({ result, lang, openScheme, saveApplication }) {
   </article>;
 }
 
-function Reply({ reply, lang, openScheme, saveApplication }) {
+function Reply({ reply, lang, openScheme, saveApplication, browse }) {
   const t = (...text) => local(copy(...text), lang);
   if (reply.kind === 'question') {
     const { scope, preface, values, prompt, advice } = questionText(reply, lang);
@@ -61,10 +62,15 @@ function Reply({ reply, lang, openScheme, saveApplication }) {
   if (reply.kind === 'guide') {
     return <>{schemes.filter(({ id }) => reply.schemeIds.includes(id)).map((scheme) => <article key={scheme.id} className="result-card"><b>{local(scheme.name, lang)}</b><ol>{scheme.steps.map((step) => <li key={step.en}>{local(step, lang)}</li>)}</ol><small>{local(words.docs, lang)}</small><p>{scheme.docs.map((doc) => local(doc, lang)).join(', ')}</p><a href={scheme.portal} target="_blank" rel="noreferrer">{local(words.portal, lang)} <ExternalLink size={13} /></a></article>)}</>;
   }
+  if (reply.kind === 'directory') return <>
+    <p>{local(words.directory, lang)}</p>
+    {reply.items.map((item) => <article className="result-card" key={item.slug}><b>{item.title}</b><small>{item.region}</small><a href={item.source} target="_blank" rel="noreferrer">myScheme <ExternalLink size={13} /></a></article>)}
+    <button className="button subtle compact" onClick={() => browse('', reply.query)}>{t('Show all directory matches', 'निर्देशिका के सभी परिणाम देखें', 'జాబితాలోని అన్ని ఫలితాలు చూపించండి', 'निर्देशिकेतील सर्व निकाल पहा')}</button>
+  </>;
   return <p>{local(words[reply.kind], lang)}</p>;
 }
 
-export function Assistant({ lang, active, request, openScheme, saveApplication }) {
+export function Assistant({ lang, active, request, openScheme, saveApplication, signedIn, signIn, browse }) {
   const [thread, setThread] = useState(initialConversation);
   const [messages, setMessages] = useState([welcomeMessage]);
   const [member, setMember] = useState(null);
@@ -72,16 +78,21 @@ export function Assistant({ lang, active, request, openScheme, saveApplication }
   const [partial, setPartial] = useState('');
   const [error, setError] = useState('');
   const [voiceMode, setVoiceMode] = useState(true);
+  const [handsFree, setHandsFree] = useState(false);
   const list = useRef(null);
   const requestSeen = useRef(null);
   const composer = useRef(null);
+  const turnId = useRef(0);
+  const isActive = useRef(active);
+  isActive.current = active;
   const t = (...text) => local(copy(...text), lang);
-  const speech = useSpeech(lang, (text) => send(text, { fromVoice: true }), (key) => { setError(key); setPartial(''); }, setPartial);
+  const speech = useSpeech(lang, (text) => send(text, { fromVoice: true }), (key) => { setError(key); setPartial(''); }, setPartial, { signedIn, handsFree });
   useEffect(() => {
     if (!active) speech.stop();
   }, [active, speech.stop]);
   useEffect(() => {
     if (!active || !request || requestSeen.current === request) return;
+    turnId.current++;
     requestSeen.current = request;
     const fresh = { ...initialConversation(), facts: request.member?.facts ?? {} };
     setError('');
@@ -100,20 +111,38 @@ export function Assistant({ lang, active, request, openScheme, saveApplication }
     if (messages.length > 1 && list.current) list.current.scrollTop = list.current.scrollHeight;
   }, [messages, active]);
 
-  function send(text, { selectedScope, selectValue, fromVoice = false } = {}) {
+  async function send(text, { selectedScope, selectValue, fromVoice = false } = {}) {
     const value = text.trim().slice(0, 500);
     if (!value && !selectedScope) return;
+    const id = ++turnId.current;
     const outcome = advance(thread, { text: value, selectedScope, selectValue });
     setThread(outcome.thread);
     setMessages((previous) => [...previous, ...(value ? [{ kind: 'user', text: value }] : []), outcome.reply]);
     setError('');
     setPartial('');
     setDraft('');
-    if (fromVoice && voiceMode) speech.speak(spokenReply(outcome.reply, lang));
-    else speech.stop();
+    let reply = outcome.reply;
+    const lookup = !selectedScope && !thread.pending && !detectScope(normalize(value)).length
+      && catalogueTerms(value).length > 0 && (reply.kind === 'discover' || /\b(?:check|show|find|about|scheme|yojana)\b/i.test(value));
+    if (lookup) {
+      try {
+        const items = findDirectory(await loadDirectory(), { query: value }).filter(directoryOnly).slice(0, 4);
+        if (turnId.current !== id) return;
+        if (items.length) {
+          reply = { kind: 'directory', items, query: value };
+          setMessages((previous) => previous.map((entry) => entry === outcome.reply ? reply : entry));
+        }
+      } catch { /* The structured interview works without the directory. */ }
+    }
+    if (fromVoice && voiceMode && isActive.current && turnId.current === id) {
+      const nextTurn = handsFree && ['question', 'discover'].includes(reply.kind)
+        ? () => { if (isActive.current && turnId.current === id) speech.start(); } : undefined;
+      speech.speak(spokenReply(reply, lang), nextTurn);
+    } else if (turnId.current === id) speech.stop();
   }
 
   function restart() {
+    turnId.current++;
     speech.stop();
     setMessages([welcomeMessage]);
     setThread(initialConversation());
@@ -160,6 +189,8 @@ export function Assistant({ lang, active, request, openScheme, saveApplication }
         <p>{voiceState[speech.status]}</p>
         <button className="button primary" onClick={mic}><AudioControl size={18} />{accessibleMic}</button>
         <label className="read-toggle"><input type="checkbox" checked={voiceMode} onChange={(event) => { setVoiceMode(event.target.checked); if (!event.target.checked && speech.status === 'speaking') speech.stop(); }} />{t('Read voice replies aloud', 'आवाज़ के जवाब बोलें', 'వాయిస్ జవాబులు చదవండి', 'आवाजाची उत्तरे वाचा')}</label>
+        <label className="read-toggle"><input type="checkbox" checked={handsFree} onChange={(event) => { setHandsFree(event.target.checked); if (!event.target.checked) speech.stop(); }} />{t('Hands-free follow-up questions', 'बिना बटन दबाए आगे के सवाल', 'బటన్ నొక్కకుండా తదుపరి ప్రశ్నలు', 'बटण न दाबता पुढील प्रश्न')}</label>
+        {speech.signInRequired && <button className="text-button" onClick={signIn}>{t('Sign in for Sarvam voice', 'Sarvam आवाज़ के लिए साइन इन करें', 'Sarvam వాయిస్ కోసం సైన్ ఇన్ చేయండి', 'Sarvam आवाजासाठी साइन इन करा')}</button>}
         <small>{speech.providerReady
           ? t('Sarvam processes voice recordings and spoken replies. Keep ID and bank numbers out of the chat.', 'Sarvam आवाज़ की रिकॉर्डिंग और बोले गए जवाब संसाधित करता है। चैट में पहचान या बैंक नंबर न दें।', 'Sarvam వాయిస్ రికార్డింగ్‌లు, మాట జవాబులను నిర్వహిస్తుంది. గుర్తింపు, బ్యాంకు సంఖ్యలు చాట్‌లో ఇవ్వకండి.', 'Sarvam आवाजाच्या रेकॉर्डिंगवर आणि उत्तरांवर प्रक्रिया करते. चॅटमध्ये ओळख व बँक क्रमांक देऊ नका.')
           : t('Your browser handles speech. Its speech service may process audio online. Keep ID and bank numbers out of the chat.', 'आवाज़ आपका ब्राउज़र संभालता है। उसकी सेवा ऑडियो ऑनलाइन संसाधित कर सकती है। चैट में पहचान या बैंक नंबर न लिखें।', 'మాటలను బ్రౌజర్ నిర్వహిస్తుంది. ఆడియో ఆన్‌లైన్‌లో ప్రాసెస్ కావచ్చు. గుర్తింపు, బ్యాంకు సంఖ్యలు చాట్‌లో ఇవ్వకండి.', 'तुमचा ब्राउझर आवाज हाताळतो. त्याची सेवा ऑडिओ ऑनलाइन प्रक्रिया करू शकते. ओळख व बँक क्रमांक चॅटमध्ये देऊ नका.')}</small>
@@ -168,7 +199,7 @@ export function Assistant({ lang, active, request, openScheme, saveApplication }
         <div className="chat-header"><div className="chat-icon"><Sparkles size={20} /></div><div><b>ARCEUS</b><small>{member ? member.name : t('Eligibility conversation', 'पात्रता बातचीत', 'అర్హత సంభాషణ', 'पात्रता संवाद')}</small></div><button className="icon-button" onClick={restart} title={t('Restart conversation', 'नई बातचीत', 'కొత్త సంభాషణ', 'नवीन संवाद')} aria-label={t('Restart conversation', 'नई बातचीत', 'కొత్త సంభाषण', 'नवीन संवाद')}><RotateCcw size={18} /></button></div>
         <div className="transcript" ref={list} role="log" aria-live="polite" tabIndex={0}>
           {messages.map((reply, index) => <div key={index} className={'message ' + (reply.kind === 'user' ? 'user-message' : 'agent-message')}>
-            {reply.kind === 'user' ? <p>{reply.text}</p> : <><Reply reply={reply} lang={lang} openScheme={openScheme} saveApplication={(scheme) => saveApplication(scheme, member)} /><button className="listen-button" aria-label={t('Read this reply aloud', 'जवाब सुनें', 'ఈ జవాబు వినండి', 'हे उत्तर ऐका')} onClick={() => speech.speak(spokenReply(reply, lang))}><Volume2 size={15} /></button></>}
+            {reply.kind === 'user' ? <p>{reply.text}</p> : <><Reply reply={reply} lang={lang} openScheme={openScheme} saveApplication={(scheme) => saveApplication(scheme, member)} browse={browse} /><button className="listen-button" aria-label={t('Read this reply aloud', 'जवाब सुनें', 'ఈ జవాబు వినండి', 'हे उत्तर ऐका')} onClick={() => speech.speak(spokenReply(reply, lang))}><Volume2 size={15} /></button></>}
           </div>)}
           {(last.kind === 'welcome' || last.kind === 'discover') && <div className="quick-choices">{samples.map(([id, label]) => <button className="chip" key={id} onClick={() => send(local(label, lang), { selectedScope: [id] })}>{local(label, lang)} <ChevronRight size={15} /></button>)}</div>}
           {activeField && <div className="quick-choices">{quickOptions.map(([value, label]) => <button className="chip" key={String(value)} onClick={() => send(local(label, lang), { selectValue: value })}>{local(label, lang)}</button>)}<button className="chip skip-chip" onClick={() => send(local(words.skip, lang))}>{local(words.skip, lang)}</button></div>}

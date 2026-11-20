@@ -15,6 +15,7 @@ const intent = {
   marriage: /marriage|wedding|bride|शादी|विवाह|దుల్హన్|పెళ్లి|వివాహ|लग्न|वधू/iu,
   insurance: /insurance|cover|बीमा|బీమా|विमा/iu,
   savings: /\bsavings?\b(?!\s+(?:bank\s+)?account)|daughter|girl child|बचत(?!\s+खाता)|बेटी|बालिका|పొదుపు(?!\s+ఖాతా)|బాలిక|కుమార్తె|मुलगी/iu,
+  utilities: /\blpg\b|gas connection|गैस कनेक्शन|గ్యాస్ కనెక్షన్|गॅस जोडणी/iu,
 };
 const nativeAlias = {
   'pm-kisan': /పీఎం\s*కిసాన్|पीएम[\s-]*किसान/iu,
@@ -27,7 +28,7 @@ const nativeAlias = {
   sukanya: /సుకన్య|सुकन्या/iu,
 };
 export function detectScope(text) {
-  const exact = schemes.filter((scheme) => scheme.aliases.test(text) || nativeAlias[scheme.id].test(text));
+  const exact = schemes.filter((scheme) => scheme.aliases.test(text) || nativeAlias[scheme.id]?.test(text));
   if (exact.length) return exact.map(({ id }) => id);
   const matched = Object.keys(intent).filter((key) => intent[key].test(text));
   return schemes.filter(({ category }) => matched.includes(category)).map(({ id }) => id);

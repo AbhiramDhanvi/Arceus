@@ -88,6 +88,17 @@ test('thresholds and conditional rules are evaluated independently', () => {
   assert.equal(evaluate(get('sukanya'), { girl: true, age: 10, inIndia: true, newSukanya: true }).state, 'ineligible');
 });
 
+test('new pension and LPG interviews respect age and household restrictions', () => {
+  const apy = { age: 39, indian: true, bank: true, taxpayer: false, newApy: true };
+  assert.equal(evaluate(get('apy'), apy).state, 'eligible');
+  assert.equal(evaluate(get('apy'), { ...apy, age: 40 }).state, 'ineligible');
+  assert.equal(evaluate(get('apy'), { ...apy, taxpayer: true }).state, 'ineligible');
+  const ujjwala = { age: 18, woman: true, lpg: false, deprivation: true };
+  assert.equal(evaluate(get('pmuy2'), ujjwala).state, 'eligible');
+  assert.equal(evaluate(get('pmuy2'), { ...ujjwala, lpg: true }).state, 'ineligible');
+  assert.match(spokenReply(start('పీఎం విశ్వకర్మ').reply, 'te'), /సంప్రదాయ/);
+});
+
 test('application guidance leaves the interview question intact', () => {
   const state = start('PM-KISAN');
   const guide = turn(state, 'How do I apply?');

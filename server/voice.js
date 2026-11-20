@@ -20,16 +20,22 @@ async function read(req, limit) {
   return Buffer.concat(chunks);
 }
 
-export function voiceMiddleware(apiKey, fetcher = fetch) {
+export function voiceMiddleware(apiKey, fetcher = fetch, { publicOrigin, verifyUser } = {}) {
   let inflight = 0;
+  let windowEnd = 0;
+  let totalTurns = 0;
+  const turns = new Map();
+  const authRequired = Boolean(verifyUser);
   return async (req, res) => {
     const localRequest = ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress);
     const host = req.headers.host ?? '';
     const localHost = /^(?:127\.0\.0\.1|localhost|\[::1\])(?::\d+)?$/i.test(host);
-    const originMatches = !req.headers.origin || req.headers.origin === 'http://' + host || req.headers.origin === 'https://' + host;
-    if (!localRequest || !localHost || !originMatches || req.headers['sec-fetch-site'] === 'cross-site') return send(res, 403, { error: 'Voice is available only on this machine.' });
+    const origin = req.headers.origin;
+    const allowed = publicOrigin ? !origin || origin === publicOrigin
+      : localRequest && localHost && (!origin || origin === 'http://' + host || origin === 'https://' + host);
+    if (!allowed || req.headers['sec-fetch-site'] === 'cross-site') return send(res, 403, { error: 'Voice requests must come from ARCEUS.' });
     const url = new URL(req.url, 'http://localhost');
-    if (req.method === 'GET' && url.pathname === '/config') return send(res, 200, { managed: Boolean(apiKey) });
+    if (req.method === 'GET' && url.pathname === '/config') return send(res, 200, { managed: Boolean(apiKey), ...(authRequired ? { authRequired } : {}) });
     if (req.method !== 'POST' || !['/recognise', '/speak'].includes(url.pathname)) return send(res, 404, { error: 'Unknown voice route.' });
     if (!apiKey) return send(res, 503, { error: 'Managed voice is not configured.' });
     const language = url.searchParams.get('lang');
@@ -37,6 +43,24 @@ export function voiceMiddleware(apiKey, fetcher = fetch) {
     if (inflight >= 4) return send(res, 429, { error: 'Voice is busy. Try again shortly.' });
     inflight++;
     try {
+      if (verifyUser) {
+        const authorization = req.headers.authorization?.match(/^Bearer ([A-Za-z0-9_.-]{30,4096})$/i);
+        const userId = authorization ? await verifyUser(authorization[1]) : null;
+        if (!userId) return send(res, 401, { error: 'Sign in to use managed speech.' });
+        const now = Date.now();
+        if (now >= windowEnd) {
+          windowEnd = now + 300000;
+          totalTurns = 0;
+          turns.clear();
+        }
+        const usage = turns.get(userId) ?? 0;
+        if (usage >= 24 || totalTurns >= 160) {
+          res.setHeader('Retry-After', Math.ceil((windowEnd - now) / 1000));
+          return send(res, 429, { error: 'The speech limit was reached. Try again in a few minutes.' });
+        }
+        turns.set(userId, usage + 1);
+        totalTurns++;
+      }
       const decoding = url.pathname === '/recognise';
       const type = (req.headers['content-type'] ?? '').split(';')[0];
       let body;

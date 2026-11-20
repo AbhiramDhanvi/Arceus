@@ -3,8 +3,18 @@ import { useEffect, useState } from 'react';
 
 const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-export const supabase = url && key ? createClient(url, key) : null;
+export const supabase = url && key ? createClient(url, key, { auth: { flowType: 'pkce' } }) : null;
 export const documentBucket = 'citizen-documents';
+
+export function authCallback(recovery = false) {
+  return window.location.origin + '/auth/callback' + (recovery ? '?intent=recovery' : '');
+}
+
+export async function voiceHeaders() {
+  if (!supabase) return {};
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ? { Authorization: 'Bearer ' + data.session.access_token } : {};
+}
 
 export function useAccount() {
   const [session, setSession] = useState(null);
@@ -17,7 +27,14 @@ export function useAccount() {
     });
     return () => subscription.unsubscribe();
   }, []);
-  return { user: session?.user, loading, configured: Boolean(supabase) };
+  const callbackUrl = new URL(window.location.href);
+  const params = callbackUrl.searchParams;
+  const hash = new URLSearchParams(callbackUrl.hash.slice(1));
+  return {
+    user: session?.user, loading, configured: Boolean(supabase),
+    recovery: callbackUrl.pathname === '/auth/callback' && params.get('intent') === 'recovery',
+    callbackError: params.get('error_code') || hash.get('error_code') || params.get('error') || hash.get('error'),
+  };
 }
 
 export function dataOrThrow({ data, error }) {
